@@ -20,6 +20,7 @@
 #define DK_MAGIC_H
 
 #include "bflib_basics.h"
+#include "bflib_keybrd.h"
 #include "globals.h"
 #include "map_data.h"
 #include "player_data.h"

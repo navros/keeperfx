@@ -2246,34 +2246,42 @@ int get_power_overcharge_level(struct PlayerInfo *player)
 
 TbBool update_power_overcharge(struct PlayerInfo *player, int pwkind)
 {
-  struct Dungeon *dungeon;
-  int i;
-  if (pwkind >= magic_conf.power_types_count)
-      return false;
-  dungeon = get_dungeon(player->id_number);
-  const struct MagicStats *pwrdynst;
-  pwrdynst = get_power_dynamic_stats(pwkind);
-  i = (player->cast_expand_level+1) >> 2;
-  if (i > SPELL_MAX_LEVEL)
-    i = SPELL_MAX_LEVEL;
-  if (pwrdynst->cost[i] <= dungeon->total_money_owned)
-  {
-    // If we have more money, increase overcharge
-    player->cast_expand_level++;
-  } else
-  {
-    // If we don't have money, decrease the charge
-    while (pwrdynst->cost[i] > dungeon->total_money_owned)
-    {
-      i--;
-      if (i < 0) break;
+    if (pwkind >= magic_conf.power_types_count) {
+        return false;
     }
-    if (i >= 0)
-      player->cast_expand_level = (i << 2) + 1;
+
+    struct Dungeon* dungeon = get_dungeon(player->id_number);
+    const struct MagicStats* pwrdynst = get_power_dynamic_stats(pwkind);
+    int i = (player->cast_expand_level + 1) >> 2;
+    if (i > SPELL_MAX_LEVEL) {
+        i = SPELL_MAX_LEVEL;
+    }
+    if (lbKeyOn[KC_LCONTROL] || lbKeyOn[KC_RCONTROL]) {
+        // Increase to maximum overcharge if the control is held
+        i = SPELL_MAX_LEVEL;
+        player->cast_expand_level = (i << 2);
+    }
+
+    if (pwrdynst->cost[i] <= dungeon->total_money_owned)
+    {
+        // If we have more money, increase overcharge
+        player->cast_expand_level++;
+    }
     else
-      player->cast_expand_level = 0;
-  }
-  return (i < SPELL_MAX_LEVEL);
+    {
+        // If we don't have money, decrease the charge
+        while (i >= 0 && pwrdynst->cost[i] > dungeon->total_money_owned) {
+            i--;
+        }
+
+        if (i >= 0) {
+            player->cast_expand_level = (i << 2) + 1;
+        }
+        else {
+            player->cast_expand_level = 0;
+        }
+    }
+    return (i < SPELL_MAX_LEVEL);
 }
 /******************************************************************************/
 #ifdef __cplusplus
