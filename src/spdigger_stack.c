@@ -2627,135 +2627,138 @@ long check_out_imp_tokes(struct Thing *thing)
     return 1;
 }
 
-long check_out_imp_last_did(struct Thing *creatng)
+long check_out_imp_last_did(struct Thing* creatng)
 {
-  struct CreatureControl *cctrl;
-  struct Dungeon *dungeon;
-  cctrl = creature_control_get_from_thing(creatng);
-  SYNCDBG(19,"Starting for %s index %d, last did %d repeated %d times",thing_model_name(creatng),(int)creatng->index,(int)cctrl->digger.last_did_job,(int)cctrl->digger.task_repeats);
-  TRACE_THING(creatng);
-  switch (cctrl->digger.last_did_job)
-  {
-  case SDLstJob_None:
-      return false;
-  case SDLstJob_DigOrMine:
-      if (is_digging_indestructible_place(creatng)) {
-          dungeon = get_dungeon(creatng->owner);
-      //don't reassign if it's the first gem dig since other tasks
-      if (cctrl->digger.task_repeats != 0)
-      { 
-        // If we were digging gems, after 5 repeats of this job, a 1 in 20 chance to select another dungeon job.
-        // This allows to switch to other important tasks and not consuming all the diggers workforce forever
-        if (( CREATURE_RANDOM(creatng,20) == 1) && ((cctrl->digger.task_repeats % 5) == 0) && (dungeon->digger_stack_length > 1))
-        {
-          // Set position in digger tasks list to a random place
-          SYNCDBG(9,"Digger %s index %d reset due to neverending task",thing_model_name(creatng),(int)creatng->index);
-          cctrl->digger.stack_update_turn = dungeon->digger_stack_update_turn;
-          cctrl->digger.task_stack_pos = CREATURE_RANDOM(creatng, dungeon->digger_stack_length);
-          break;
+    struct CreatureControl* cctrl;
+    struct Dungeon* dungeon;
+    cctrl = creature_control_get_from_thing(creatng);
+    SYNCDBG(19, "Starting for %s index %d, last did %d repeated %d times", thing_model_name(creatng), (int)creatng->index, (int)cctrl->digger.last_did_job, (int)cctrl->digger.task_repeats);
+    TRACE_THING(creatng);
+    switch (cctrl->digger.last_did_job)
+    {
+    case SDLstJob_None:
+        return false;
+    case SDLstJob_DigOrMine:
+        if (is_digging_indestructible_place(creatng)) {
+            // DONT reassign the task and keep digging
+
+            //dungeon = get_dungeon(creatng->owner);
+            ////don't reassign if it's the first gem dig since other tasks
+            //if (cctrl->digger.task_repeats != 0)
+            //{
+            //    // If we were digging gems, after 5 repeats of this job, a 1 in 20 chance to select another dungeon job.
+            //    // This allows to switch to other important tasks and not consuming all the diggers workforce forever
+            //    if ((CREATURE_RANDOM(creatng, 20) == 1) && ((cctrl->digger.task_repeats % 5) == 0) && (dungeon->digger_stack_length > 1))
+            //    {
+            //        // Set position in digger tasks list to a random place
+            //        SYNCDBG(9, "Digger %s index %d reset due to neverending task", thing_model_name(creatng), (int)creatng->index);
+            //        cctrl->digger.stack_update_turn = dungeon->digger_stack_update_turn;
+            //        cctrl->digger.task_stack_pos = CREATURE_RANDOM(creatng, dungeon->digger_stack_length);
+            //        break;
+            //    }
+            //}
         }
-      }
-      }
-      if (check_out_undug_place(creatng) || check_out_undug_area(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_DigOrMine;
-          return true;
-      }
-      if (check_out_unconverted_place(creatng) || check_out_unprettied_place(creatng))
-      {
-          cctrl->digger.task_repeats = 0;
-          cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
-          SYNCDBG(19,"Done on unprettied or unconverted place 1");
-          return true;
-      }
-      imp_stack_update(creatng);
-      if (check_out_unprettied_or_unconverted_area(creatng))
-      {
-          cctrl->digger.task_repeats = 0;
-          cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
-          SYNCDBG(9,"Done on unprettied or unconverted area 1");
-          return true;
-      }
-      break;
-  case SDLstJob_ConvImprDungeon:
-      if (check_out_unconverted_place(creatng) || check_out_unprettied_place(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
-          SYNCDBG(19,"Done on unprettied or unconverted place 2");
-          return true;
-      }
-      imp_stack_update(creatng);
-      if (check_out_unprettied_or_unconverted_area(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
-          SYNCDBG(9,"Done on unprettied or unconverted area 2");
-          return true;
-      }
-      if (check_out_undug_area(creatng))
-      {
-          cctrl->digger.task_repeats = 0;
-          cctrl->digger.last_did_job = SDLstJob_DigOrMine;
-          return true;
-      }
-      break;
-  case SDLstJob_ReinforceWall3:
-      dungeon = get_dungeon(creatng->owner);
-      imp_stack_update(creatng);
-      if (creature_task_needs_check_out_after_digger_stack_change(creatng))
-      {
-          // If there are other tasks besides reinforcing, do not continue reinforcing
-          //TODO DIGGERS it would be smarter to include priorities for tasks, and use generic priority handling for all tasks
-          if (find_in_imp_stack_task_other_than_starting_at(DigTsk_ReinforceWall, 0, dungeon) != -1)
-              break;
-      }
-      if (check_out_unreinforced_place(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_ReinforceWall3;
-          return true;
-      }
-      if (check_out_unreinforced_area(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_ReinforceWall3;
-          return true;
-      }
-      break;
-  case SDLstJob_NonDiggerTask:
-      if (creature_can_do_job_for_player(creatng, creatng->owner, cctrl->job_assigned, JobChk_None))
-      {
-          if (send_creature_to_job_for_player(creatng, creatng->owner, cctrl->job_assigned))
-          {
-              cctrl->job_assigned_check_turn = game.play_gameturn;
-              return true;
-          }
-      }
-      break;
-  case SDLstJob_ReinforceWall9:
-      if (check_out_unreinforced_place(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_ReinforceWall9;
-          return true;
-      }
-      if (check_out_unreinforced_area(creatng))
-      {
-          cctrl->digger.task_repeats++;
-          cctrl->digger.last_did_job = SDLstJob_ReinforceWall9;
-          return true;
-      }
-      break;
-  default:
-      break;
-  }
-  cctrl->digger.task_repeats = 0;
-  cctrl->digger.last_did_job = SDLstJob_None;
-  SYNCDBG(9,"No job found");
-  return false;
+        if (check_out_undug_place(creatng) || check_out_undug_area(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_DigOrMine;
+            return true;
+        }
+        if (check_out_unconverted_place(creatng) || check_out_unprettied_place(creatng))
+        {
+            cctrl->digger.task_repeats = 0;
+            cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
+            SYNCDBG(19, "Done on unprettied or unconverted place 1");
+            return true;
+        }
+        imp_stack_update(creatng);
+        if (check_out_unprettied_or_unconverted_area(creatng))
+        {
+            cctrl->digger.task_repeats = 0;
+            cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
+            SYNCDBG(9, "Done on unprettied or unconverted area 1");
+            return true;
+        }
+        break;
+    case SDLstJob_ConvImprDungeon:
+        if (check_out_unconverted_place(creatng) || check_out_unprettied_place(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
+            SYNCDBG(19, "Done on unprettied or unconverted place 2");
+            return true;
+        }
+        imp_stack_update(creatng);
+        if (check_out_unprettied_or_unconverted_area(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_ConvImprDungeon;
+            SYNCDBG(9, "Done on unprettied or unconverted area 2");
+            return true;
+        }
+        if (check_out_undug_area(creatng))
+        {
+            cctrl->digger.task_repeats = 0;
+            cctrl->digger.last_did_job = SDLstJob_DigOrMine;
+            return true;
+        }
+        break;
+    case SDLstJob_ReinforceWall3:
+        dungeon = get_dungeon(creatng->owner);
+        imp_stack_update(creatng);
+        if (creature_task_needs_check_out_after_digger_stack_change(creatng))
+        {
+            // If there are other tasks besides reinforcing, do not continue reinforcing
+            //TODO DIGGERS it would be smarter to include priorities for tasks, and use generic priority handling for all tasks
+            if (find_in_imp_stack_task_other_than_starting_at(DigTsk_ReinforceWall, 0, dungeon) != -1)
+                break;
+        }
+        if (check_out_unreinforced_place(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_ReinforceWall3;
+            return true;
+        }
+        if (check_out_unreinforced_area(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_ReinforceWall3;
+            return true;
+        }
+        break;
+    case SDLstJob_NonDiggerTask:
+        if (creature_can_do_job_for_player(creatng, creatng->owner, cctrl->job_assigned, JobChk_None))
+        {
+            if (send_creature_to_job_for_player(creatng, creatng->owner, cctrl->job_assigned))
+            {
+                cctrl->job_assigned_check_turn = game.play_gameturn;
+                return true;
+            }
+        }
+        break;
+    case SDLstJob_ReinforceWall9:
+        if (check_out_unreinforced_place(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_ReinforceWall9;
+            return true;
+        }
+        if (check_out_unreinforced_area(creatng))
+        {
+            cctrl->digger.task_repeats++;
+            cctrl->digger.last_did_job = SDLstJob_ReinforceWall9;
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+    cctrl->digger.task_repeats = 0;
+    cctrl->digger.last_did_job = SDLstJob_None;
+    SYNCDBG(9, "No job found");
+    return false;
 }
+
 //Create list of up to 64 tasks. 
 TbBool imp_stack_update(struct Thing *creatng)
 {
