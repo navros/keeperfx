@@ -1298,7 +1298,7 @@ void gui_creature_query_background2(struct GuiMenu *gmnu)
 unsigned short get_creature_pick_flags(TbBool pick_up)
 {
     unsigned short pick_flags = pick_up ? TPF_PickableCheck : 0;
-    if (lbKeyOn[KC_LCONTROL] || lbKeyOn[KC_RCONTROL])
+    if (!lbKeyOn[KC_LCONTROL] && !lbKeyOn[KC_RCONTROL])
     {
         pick_flags |= TPF_OrderedPick;
     }
